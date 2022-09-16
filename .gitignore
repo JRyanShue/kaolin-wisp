@@ -13,3 +13,9 @@ _*/
 *.egg-info
 build
 imgui.ini
+V8_/*
+*__pycache__
+*.zip
+_results
+build
+

@@ -204,6 +204,7 @@ class BaseNeuralField(nn.Module):
                 # Filter args to the forward function and execute
                 argspec = inspect.getfullargspec(fn)
                 required_args = argspec.args[:-len(argspec.defaults)][1:] # Skip first element, self
+                print(f'required_args: {required_args}')
                 optional_args = argspec.args[-len(argspec.defaults):]
                 
                 input_args = {}

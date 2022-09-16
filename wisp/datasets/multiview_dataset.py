@@ -91,6 +91,7 @@ class MultiviewDataset(Dataset):
         if self.multiview_dataset_format == "standard":
             data = load_nerf_standard_data(self.root, split,
                                             bg_color=self.bg_color, num_workers=self.dataset_num_workers, mip=self.mip)
+            # print(f'data: {data}')  # Looks fine
         elif self.multiview_dataset_format == "rtmv":
             if split == 'train':
                 data = load_rtmv_data(self.root, split,

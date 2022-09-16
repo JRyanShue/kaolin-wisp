@@ -58,6 +58,9 @@ class TriplanarFeatureVolume(nn.Module):
             (torch.FloatTensor): Features of shape [batch, num_samples, fdim] or [batch, fdim].
         """
         # TODO(ttakikawa): Maybe cleaner way of writing this?
+        print(f'x.shape: {x.shape}')
+        print(f'x[0:100]: {x[0:100]}')
+        x = torch.rand_like(x)
         N = x.shape[0]
         if len(x.shape) == 3:
             sample_coords = x.reshape(1, N, x.shape[1], 3) # [N, 1, 1, 3]    

@@ -20,6 +20,8 @@ from wisp.ops.image import write_png, write_exr
 from wisp.ops.image.metrics import psnr, lpips, ssim
 from wisp.core import Rays
 
+import numpy as np
+
 
 class MultiviewTrainer(BaseTrainer):
 
@@ -43,6 +45,7 @@ class MultiviewTrainer(BaseTrainer):
     def step(self, epoch, n_iter, data):
         """Implement the optimization over image-space loss.
         """
+        # print(f'data: {data}')
         self.scene_state.optimization.iteration = n_iter
 
         timer = PerfTimer(activate=False, show_memory=False)
@@ -51,15 +54,21 @@ class MultiviewTrainer(BaseTrainer):
         rays = data['rays'].to(self.device).squeeze(0)
         img_gts = data['imgs'].to(self.device).squeeze(0)
 
+        # print(f"type(rays), type(img_gts): {type(rays), type(img_gts)}")
+        # print(f'rays: {rays}')
+        # print(f"img_gts.shape: {img_gts.shape}")
+        # requires_grad = True
+
         timer.check("map to device")
 
         self.optimizer.zero_grad(set_to_none=True)
         
         timer.check("zero grad")
             
-        loss = 0
+        loss = 0  # torch.Tensor(np.array([0])).to(self.device)
         
-        if self.extra_args["random_lod"]:
+        if self.extra_args["random_lod"]:  # False
+            # print('self.extra_args["random_lod"] == True')
             # Sample from a geometric distribution
             population = [i for i in range(self.pipeline.nef.num_lods)]
             weights = [2**i for i in range(self.pipeline.nef.num_lods)]
@@ -76,6 +85,7 @@ class MultiviewTrainer(BaseTrainer):
             # RGB Loss
             #rgb_loss = F.mse_loss(rb.rgb, img_gts, reduction='none')
             rgb_loss = torch.abs(rb.rgb[..., :3] - img_gts[..., :3])
+            # print(f"rb.rgb.shape, img_gts.shape: {rb.rgb.shape, img_gts.shape}")
             
             rgb_loss = rgb_loss.mean()
             loss += self.extra_args["rgb_loss"] * rgb_loss
@@ -85,6 +95,7 @@ class MultiviewTrainer(BaseTrainer):
         self.log_dict['total_loss'] += loss.item()
         self.log_dict['total_iter_count'] += 1
         
+        print(f'loss: {loss}, loss.requires_grad {loss.requires_grad}')
         self.scaler.scale(loss).backward()
         self.scaler.step(self.optimizer)
         self.scaler.update()
