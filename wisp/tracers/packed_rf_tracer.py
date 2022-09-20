@@ -25,6 +25,7 @@ class PackedRFTracer(BaseTracer):
         """Set the default trace() arguments. """
         super().__init__(**kwargs)
         self.raymarch_type = raymarch_type
+        print(f'self.raymarch_type: {self.raymarch_type}')
         self.num_steps = num_steps
         self.step_size = step_size
         self.bg_color = bg_color

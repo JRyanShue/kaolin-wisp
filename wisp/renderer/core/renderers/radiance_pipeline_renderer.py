@@ -35,6 +35,7 @@ class NeuralRadianceFieldPackedRenderer(RayTracedRenderer):
         if raymarch_type is None:
             raymarch_type = 'voxel'
         self.raymarch_type = raymarch_type
+        print(f'self.raymarch_type: {self.raymarch_type}')
         self.bg_color = 'black'
 
         self.tracer = tracer_type() if tracer_type is not None else PackedRFTracer()

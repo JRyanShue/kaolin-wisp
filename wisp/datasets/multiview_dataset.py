@@ -94,6 +94,7 @@ class MultiviewDataset(Dataset):
             # print(f'data: {data}')  # Looks fine
         elif self.multiview_dataset_format == "rtmv":
             if split == 'train':
+                print("split == 'train'")
                 data = load_rtmv_data(self.root, split,
                                       return_pointcloud=True, mip=mip, bg_color=self.bg_color,
                                       normalize=True, num_workers=self.dataset_num_workers)
@@ -101,6 +102,7 @@ class MultiviewDataset(Dataset):
                 self.coords_center = data["coords_center"]
                 self.coords_scale = data["coords_scale"]
             else:
+                print(f"split == {split}")
                 if self.coords is None:
                     assert False and "Initialize the dataset first with the training data!"
                 

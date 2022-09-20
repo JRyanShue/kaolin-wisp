@@ -306,6 +306,7 @@ class BaseTrainer(ABC):
     def iterate(self):
         """Advances the training by one training step (batch).
         """
+        # print('iterate()')
         if self.scene_state.optimization.running:
             iter_start_time = time.time()
             try:
@@ -447,6 +448,7 @@ class BaseTrainer(ABC):
 
         while self.scene_state.optimization.running:
             self.iterate()
+            # break  # For testing single iteration
 
         self.writer.close()
 

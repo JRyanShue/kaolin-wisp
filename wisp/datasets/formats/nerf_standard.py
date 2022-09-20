@@ -74,7 +74,7 @@ def _parallel_load_standard_imgs(args):
     else:
         return dict(basename=result['basename'], img=result['img'], pose=result['pose'])
 
-def load_nerf_standard_data(root, split='train', bg_color='white', num_workers=-1, mip=None):  # The main function of interest
+def load_nerf_standard_data(root, split='train', bg_color='white', num_workers=-1, mip=None, explicit_split=True, eg3d_format=False):  # The main function of interest
     """Standard loading function.
 
     This follows the conventions defined in https://github.com/NVlabs/instant-ngp.
@@ -99,13 +99,14 @@ def load_nerf_standard_data(root, split='train', bg_color='white', num_workers=-
         bg_color (str): The background color to use for when alpha=0.
         num_workers (int): The number of workers to use for multithreaded loading. If -1, will not multithread.
         mip: If set, rescales the image by 2**mip.
+        explicit_split: For the SSO experiment, we want to explicitly split one scene's examples into train/test/val.
 
     Returns:
         (dict of torch.FloatTensors): Different channels of information from NeRF.
     """
-    print('load_nerf_standard_data')
+    # print('load_nerf_standard_data')
     transforms = sorted(glob.glob(os.path.join(root, "*.json")))
-    print(f'transforms: {transforms}')
+    # print(f'transforms: {transforms}')
     # transforms = transforms * 3
     
     transform_dict = {}
@@ -129,13 +130,13 @@ def load_nerf_standard_data(root, split='train', bg_color='white', num_workers=-
     else:
         raise RuntimeError("Unsupported number of splits, there should be ['test', 'train', 'val']")
 
-    if split not in transform_dict:
+    if split not in transform_dict and not explicit_split:
         raise RuntimeError(f"Split type ['{split}'] unsupported in the dataset provided")
 
     for key in transform_dict:
-        print(f'key: {key}')
+        # print(f'key: {key}')
         with open(transform_dict[key], 'r') as f:
-            print(f'f: {f}')
+            # print(f'f: {f}')
             transform_dict[key] = json.load(f)
     
     # TODO @JRyanShue: convert this into an argument
@@ -145,11 +146,26 @@ def load_nerf_standard_data(root, split='train', bg_color='white', num_workers=-
     poses = []
     basenames = []
 
-    transform_dict[split]['frames'] = transform_dict[split].pop('labels')
+    if explicit_split and len(transform_dict.keys()) == 1 and False:  # !! I added this
+        print('Explicitly splitting into three subsets...')
+
+        # Split the single example into train/test/val frames
+        num_frames = len(transform_dict['train']['frames'])
+        train_split_idx = num_frames * 7 // 10
+        eval_split_idx = train_split_idx + num_frames * 1 // 10
+
+        all_frames = transform_dict['train']['frames']
+        transform_dict['train']['frames'] = all_frames[:train_split_idx]
+        transform_dict['val'] = dict(frames=all_frames[train_split_idx:eval_split_idx])
+        transform_dict['test'] = dict(frames=all_frames[eval_split_idx:])
+
+    # For EG3D format
+    if 'frames' not in transform_dict[split].keys():
+        transform_dict[split]['frames'] = transform_dict[split].pop('labels')
 
     # Order is correct
-    print(f"transform_dict[split]['frames'][0]: {transform_dict[split]['frames'][0]}")
-    print(f"transform_dict[split]['frames'][100]: {transform_dict[split]['frames'][100]}")
+    # print(f"transform_dict[split]['frames'][0]: {transform_dict[split]['frames'][0]}")
+    # print(f"transform_dict[split]['frames'][100]: {transform_dict[split]['frames'][100]}")
 
     if num_workers > 0 and False:  # Skip this for now; fewer variables
         # threading loading images
@@ -173,21 +189,25 @@ def load_nerf_standard_data(root, split='train', bg_color='white', num_workers=-
             p.close()
             p.join()
     else:
-        transform_dict[split]['fl_x'] = 1.025390625 * 64
-        transform_dict[split]['fl_y'] = 1.025390625 * 64
-        transform_dict[split]['cx'] = 64
-        transform_dict[split]['cy'] = 64
+        # print(transform_dict[split])
+        if eg3d_format: 
+            transform_dict[split]['fl_x'] = 1.025390625 * 64
+            transform_dict[split]['fl_y'] = 1.025390625 * 64
+            transform_dict[split]['cx'] = 64
+            transform_dict[split]['cy'] = 64
 
         for frame in tqdm(transform_dict[split]['frames'][0:SUBSET_SIZE*1000], desc='loading data'):
+        # for frame in tqdm(transform_dict[split]['frames'], desc='loading data'):
 
             # ! Convert from EG3D to NeRF standard format
-            _frame = frame
-            frame = dict()
-            frame['file_path'] = _frame[0]
-            def opengl2opencv(cam2world):
-                # return cam2world
-                return cam2world @ np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]], dtype=cam2world.dtype)
-            frame['transform_matrix'] = opengl2opencv(np.array(_frame[1][0:16]).reshape(4, 4))
+            if eg3d_format:
+                _frame = frame
+                frame = dict()
+                frame['file_path'] = _frame[0]
+                def opengl2opencv(cam2world):
+                    # return cam2world
+                    return cam2world @ np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]], dtype=cam2world.dtype)
+                frame['transform_matrix'] = opengl2opencv(np.array(_frame[1][0:16]).reshape(4, 4))
         
             # print(f"type(frame['transform_matrix']): {type(frame['transform_matrix'])}")
 
@@ -215,6 +235,7 @@ def load_nerf_standard_data(root, split='train', bg_color='white', num_workers=-
         else:
             fy = fx
     elif 'fl_x' in transform_dict[split]:
+    # elif 'fl_x' in transform_dict[split] and False:
         fx = float(transform_dict[split]['fl_x']) / float(2**mip)
         if 'fl_y' in transform_dict[split]:
             fy = float(transform_dict[split]['fl_y']) / float(2**mip)
@@ -277,7 +298,7 @@ def load_nerf_standard_data(root, split='train', bg_color='white', num_workers=-
         view_matrix[:3, :3] = poses[i][:3, :3].T
         view_matrix[:3, -1] = torch.matmul(-view_matrix[:3, :3], poses[i][:3, -1])
         view_matrix[3, 3] = 1.0
-        # print(f'fx, fy, x0, y0: {fx}, {fy}, {x0}, {y0}')
+        # print(f'fx, fy, x0, y0: {fx}, {fy}, {x0}, {y0}')  # 1111.1110311937682, 1111.1110311937682, 0.0, 0.0 in Lego, 0.0, 0.0, 0.0, 0.0 in SRN Cars
         camera = Camera.from_args(view_matrix=view_matrix,
                                   focal_x=fx,
                                   focal_y=fy,
@@ -296,7 +317,8 @@ def load_nerf_standard_data(root, split='train', bg_color='white', num_workers=-
         # print(f'camera: {camera}')
         rays.append \
             (generate_pinhole_rays(camera.to(ray_grid[0].device), ray_grid).reshape(camera.height, camera.width, 3).to
-                ('cpu'))
+                ('cpu'))  # !!!!!!!!!!!!!!!!!!!!!!
+        # raise Exception('Auto quit.')  # For testing a single iteration of data loading
 
     rays = Rays.stack(rays).to(dtype=torch.float)
     # print(f'rays: {rays}')

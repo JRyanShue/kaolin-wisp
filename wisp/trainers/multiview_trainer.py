@@ -52,6 +52,7 @@ class MultiviewTrainer(BaseTrainer):
 
         # Map to device
         rays = data['rays'].to(self.device).squeeze(0)
+        # print(f'rays: {rays}')  # !!!
         img_gts = data['imgs'].to(self.device).squeeze(0)
 
         # print(f"type(rays), type(img_gts): {type(rays), type(img_gts)}")
@@ -95,7 +96,7 @@ class MultiviewTrainer(BaseTrainer):
         self.log_dict['total_loss'] += loss.item()
         self.log_dict['total_iter_count'] += 1
         
-        print(f'loss: {loss}, loss.requires_grad {loss.requires_grad}')
+        # print(f'loss: {loss}, loss.requires_grad {loss.requires_grad}')
         self.scaler.scale(loss).backward()
         self.scaler.step(self.optimizer)
         self.scaler.update()

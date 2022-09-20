@@ -54,6 +54,8 @@ def generate_pinhole_rays(camera: Camera, coords_grid: torch.Tensor):
     Returns:
         (wisp.core.Rays): The generated pinhole rays for the camera.
     """
+    # print(f'camera: {camera}')
+    # print(f'coords_grid: {coords_grid}')
     if camera.device != coords_grid[0].device:
         raise Exception(f"Expected camera and coords_grid[0] to be on the same device, but found {camera.device} and {coords_grid[0].device}.")
     if camera.device != coords_grid[1].device:
@@ -69,10 +71,20 @@ def generate_pinhole_rays(camera: Camera, coords_grid: torch.Tensor):
 
     # pixel values are now in range [-1, 1], both tensors are of shape res_y x res_x
     pixel_x, pixel_y = _to_ndc_coords(pixel_x, pixel_y, camera)
+    # print(f'pixel_x[0][0], pixel_y[0][0]: {pixel_x[0][0]}, {pixel_y[0][0]}')  # -0.9921875, -0.9921875
+    # print(f'CameraFOV: {CameraFOV}')
+    # print(f'CameraFOV.HORIZONTAL: {CameraFOV.HORIZONTAL}, type = {type(CameraFOV.HORIZONTAL)}')  # 0
+    # print(f'CameraFOV.VERTICAL: {CameraFOV.VERTICAL}')  # 1
+    # print(f'camera.tan_half_fov(CameraFOV.HORIZONTAL): {camera.tan_half_fov(CameraFOV.HORIZONTAL)}')  # inf!
+    # print(f'camera.tan_half_fov(CameraFOV.VERTICAL): {camera.tan_half_fov(CameraFOV.VERTICAL)}')  # inf!
+    # print(f'camera.tan_half_fov: {camera.tan_half_fov}')
+    # print(f'camera.tan_half_fov(0): {camera.tan_half_fov(0)}')
 
     ray_dir = torch.stack((pixel_x * camera.tan_half_fov(CameraFOV.HORIZONTAL),
                            -pixel_y * camera.tan_half_fov(CameraFOV.VERTICAL),
                            -torch.ones_like(pixel_x)), dim=-1)
+    # print(f'pixel_x[0][0]: {pixel_x[0][0]}')  # -0.9921875
+    # print(f'ray_dir[0][0]: {ray_dir[0][0]}')  # [-inf, inf, -1.]
 
     ray_dir = ray_dir.reshape(-1, 3)    # Flatten grid rays to 1D array
     ray_orig = torch.zeros_like(ray_dir)
